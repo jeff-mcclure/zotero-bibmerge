@@ -3,8 +3,8 @@ Merge 2 .bib files
 """
 import re
 
-BIB1 = 'My Library_clean.bib'
-BIB2 = 'My Collection_clean.bib'
+input = ['testbib1_clean.bib', 'testbib2_clean.bib']
+
 
 class BibEntry:
     def __init__(self, bibentry):
@@ -56,34 +56,39 @@ class BibEntry:
             except:
                 continue
 
-# Read in bibliography entries from the two .bib files to be merged
-with open(f'{BIB1}', encoding='utf8') as f:
-    entries1 = f.read().split('@')
-with open(f'{BIB2}', encoding='utf8') as f:
-    entries2 = f.read().split('@')
 
-# Read in one bibliography into a list of classes
-bibentries = [BibEntry(entry) for entry in entries1[1:]]
+def bibmerge(libnames: list[str]) -> str:
+    # Read in bibliography entries from the two .bib files to be merged
+    with open(f'{libnames[0]}', encoding='utf8') as f:
+        entries1 = f.read().split('@')
+    with open(f'{libnames[1]}', encoding='utf8') as f:
+        entries2 = f.read().split('@')
 
-# Loop through other bibliography and check for matches, then merge
-for entry in entries2[1:]:
-    bibcheck = BibEntry(entry)
-    match = False
-    # check for matches using year and title
-    for bibentry in bibentries:
-        
-        if bibcheck.year == bibentry.year:
-            checktitle = re.sub(r'[{}]', '', bibcheck.title).lower()
-            bibtitle = re.sub(r'[{}]', '', bibentry.title).lower()
+    # Read in one bibliography into a list of classes
+    bibentries = [BibEntry(entry) for entry in entries1[1:]]
 
-            if len(set(checktitle.split()) & set(bibtitle.split()))/max(len(set(checktitle.split())), len(set(bibtitle.split()))) > 0.9:
-                match = True
-                print(bibtitle)
-                print(checktitle)
-    if not match:
-        entries1.append(entry)
+    # Loop through other bibliography and check for matches, then merge
+    for entry in entries2[1:]:
+        bibcheck = BibEntry(entry)
+        match = False
+        # check for matches using year and title
+        for bibentry in bibentries:
+            if bibcheck.year == bibentry.year:
+                checktitle = re.sub(r'[{}]', '', bibcheck.title).lower()
+                bibtitle = re.sub(r'[{}]', '', bibentry.title).lower()
+                if len(set(checktitle.split()) & set(bibtitle.split()))/max(len(set(checktitle.split())), len(set(bibtitle.split()))) > 0.9:
+                    match = True
+                    print(bibtitle)
+                    print(checktitle)
+        if not match:
+            entries1.append(entry)
 
-with open(f'_merged.bib', 'w', encoding='utf8') as f:
-    f.write('@' + '\n@'.join(sorted(entries1[1:])))
+    with open(f'merged.bib', 'w', encoding='utf8') as f:
+        f.write('@' + '\n@'.join(sorted(entries1[1:])))
 
-print(f'Processed {len(entries1)+len(entries2)} BibTeX entries.')
+    return f'Processed {len(entries1)+len(entries2)} BibTeX entries.'
+
+
+if __name__ == '__main__':
+    ret_str = bibmerge(input)
+    print(ret_str)

@@ -6,28 +6,35 @@ Textbook: names, year, title, edition, publisher, url
 Conference:
 """
 
-LIBNAME = ['My Library','My Collection']
+input = ['testbib1','testbib2']
 
-content = []
-for bibname in LIBNAME:
-    with open(f'{bibname}.bib', encoding='utf8') as f:
-        content.append(f.read())
 
-for bib_idx, contents in enumerate(content):
-    entries = contents.split('@')
-    for idx, entry in enumerate(entries):
-        entry_lines = entry.splitlines()
-        subidx_todelete = []
-        for subidx, text in enumerate(entry_lines):
-            if subidx == 0:
-                continue
-            if any(x in text for x in ['urldate =', 'abstract =', 'file =', 'language =', 'note =', 'keywords =']):
-                subidx_todelete.append(subidx)
+def bibclean(libnames: list[str]) -> str:
+    contents = [None] * len(libnames)
+    for idx, bibname in enumerate(libnames):
+        with open(f'{bibname}.bib', encoding='utf8') as f:
+            contents[idx] = f.read()
 
-        for index in reversed(subidx_todelete):
-            del entry_lines[index]
+    for bib_idx, content in enumerate(contents):
+        entries = content.split('@')
+        for idx, entry in enumerate(entries):
+            entry_lines = entry.splitlines()
+            subidx_todelete = []
+            for subidx, text in enumerate(entry_lines):
+                if subidx == 0:
+                    continue
+                if any(x in text for x in ['urldate =', 'abstract =', 'file =', 'language =', 'note =', 'keywords =']):
+                    subidx_todelete.append(subidx)
+            for index in reversed(subidx_todelete):
+                del entry_lines[index]
+            entries[idx] = '\n'.join(entry_lines)
 
-        entries[idx] = '\n'.join(entry_lines)
+        with open(f'{libnames[bib_idx]}_clean.bib', 'w', encoding='utf8') as f:
+            f.write('@' + '\n@'.join(sorted(entries[1:])))
 
-    with open(f'{LIBNAME[bib_idx]}_clean.bib', 'w', encoding='utf8') as f:
-        f.write('@' + '\n@'.join(sorted(entries[1:])))
+    return f'Successfully cleaned {len(libnames)} files.'
+
+
+if __name__ == "__main__":
+    ret_str = bibclean(input)
+    print(ret_str)
