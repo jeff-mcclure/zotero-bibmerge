@@ -79,9 +79,9 @@ class App:
                 f.write('@' + '\n@'.join(sorted(entries[1:])))
 
         # Merge files
-        with open(f'{self.filenames[0]}_clean.bib', encoding='utf8') as f:
+        with open(self.filenames[0].strip('.bib') + '_clean.bib', encoding='utf8') as f:
             entries1 = f.read().split('@')
-        with open(f'{self.filenames[1]}_clean.bib', encoding='utf8') as f:
+        with open(self.filenames[1].strip('.bib') + '_clean.bib', encoding='utf8') as f:
             entries2 = f.read().split('@')
 
         # Read in one bibliography into a list of classes
