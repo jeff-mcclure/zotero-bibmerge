@@ -1,13 +1,13 @@
 """
 GUI program: 
--Select two .bib files to merge and clean.
--New .bib file saved to working directory.
+-Select: two .bib files to merge and clean.
+-Merge: the new merged.bib file saved to working directory.
 """
 
-from tkinter import Tk, Frame, Button, Entry, filedialog
+from tkinter import Tk, Frame, Button, Entry, filedialog, StringVar
 import re
 
-# font and color theme
+# Font and color theme definition
 theme = lambda: None
 theme.bfont = ('TkTextFont', 12, 'bold')
 theme.dirfont = ('TkDefaultFont', 9)
@@ -18,29 +18,44 @@ theme.bgcolor3 = "#333130"
 theme.btncolor = "#2F546E"
 
 class App:
-    # Main app
     def __init__(self):
+        # GUI window and buttons
         root = Tk()
-        root.title('Bibliography Merge')
+        root.title('zotero-bibmerge')
         root.configure(bg=theme.bgcolor)
 
-        fileBtn = cButton(root, "    Select Files    ", lambda: self.import_files(), theme)
-        fileBtn.grid(row=0, column=0, sticky='N', padx=3, pady=5)
-        self.fileEntry = Entry(root, width=50, bd=0, bg=theme.bgcolor2, highlightbackground=theme.fcolor, highlightthickness=1, fg=theme.fcolor)
-        self.fileEntry.grid(row=0, column=1, sticky='w', padx=5, pady=5)
-        mergeBtn = cButton(root, "    Merge Files    ", lambda: self.merge_files(), theme)
-        mergeBtn.grid(row=1, column=0, sticky='N', padx=3, pady=5)
+        self.mainbib_txt = StringVar()
+        self.mergebib_txt = StringVar()
 
+        mainbibBtn = cButton(root, "    Select Main bib    ", lambda: self.import_files(self.mainbib_txt), theme)
+        mainbibBtn.grid(row=0, column=0, sticky='NW', padx=3, pady=5)
+        self.mainbibEntry = Entry(root, width=50, textvariable=self.mainbib_txt, bd=0, bg=theme.bgcolor2, highlightbackground=theme.fcolor, highlightthickness=1, fg=theme.fcolor)
+        self.mainbibEntry.grid(row=0, column=1, sticky='NE', padx=5, pady=5)
+
+        mergebibBtn = cButton(root, " Select bib to Merge ", lambda: self.import_files(self.mergebib_txt), theme)
+        mergebibBtn.grid(row=1, column=0, sticky='NW', padx=3, pady=5)
+        self.mergebibEntry = Entry(root, width=50, textvariable=self.mergebib_txt, bd=0, bg=theme.bgcolor2, highlightbackground=theme.fcolor, highlightthickness=1, fg=theme.fcolor)
+        self.mergebibEntry.grid(row=1, column=1, sticky='NE', padx=5, pady=5)
+
+        mergeBtn = cButton(root, "    Merge bibs    ", lambda: self.merge_files(self.mainbib_txt, self.mergebib_txt), theme)
+        mergeBtn.grid(row=2, column=1, sticky='SE', padx=3, pady=5)
+
+        root.grid_columnconfigure(0,weight=1)
+        root.grid_columnconfigure(1,weight=10)
+        root.grid_rowconfigure([0,1,2],weight=1)
         root.geometry("500x200+200+200")
         root.wm_attributes("-topmost", 1)
         root.mainloop()
 
-    def import_files(self):
-        self.filenames = filedialog.askopenfilenames(title = "Select two .bib files to clean and merge.")
-        self.fileEntry.insert(0, self.filenames)
+    def import_files(self, entry_txt):
+        # Select file dialog
+        self.filename = filedialog.askopenfilename(title = "Select .bib file.")
+        entry_txt.set(self.filename)
 
-    def merge_files(self):
-        # clean files
+    def merge_files(self, main_txt, merge_txt):
+        # Clean files
+        self.filenames = [main_txt.get(), merge_txt.get()]
+        print(self.filenames)
         contents = [None] * len(self.filenames)
         for idx, bibname in enumerate(self.filenames):
             with open(f'{bibname}', encoding='utf8') as f:
@@ -60,10 +75,10 @@ class App:
                     del entry_lines[index]
                 entries[idx] = '\n'.join(entry_lines)
 
-            with open(f'{self.filenames[bib_idx]}_clean.bib', 'w', encoding='utf8') as f:
+            with open(self.filenames[bib_idx].strip('.bib') + '_clean.bib', 'w', encoding='utf8') as f:
                 f.write('@' + '\n@'.join(sorted(entries[1:])))
 
-        # merge files
+        # Merge files
         with open(f'{self.filenames[0]}_clean.bib', encoding='utf8') as f:
             entries1 = f.read().split('@')
         with open(f'{self.filenames[1]}_clean.bib', encoding='utf8') as f:
@@ -72,7 +87,7 @@ class App:
         # Read in one bibliography into a list of classes
         bibentries = [BibEntry(entry) for entry in entries1[1:]]
 
-        # Loop through other bibliography and check for matches, then merge
+        # Loop through the second bibliography and ignore duplicates, then merge
         for entry in entries2[1:]:
             bibcheck = BibEntry(entry)
             match = False
@@ -95,8 +110,6 @@ class App:
 class BibEntry:
     # BibTeX entry object
     def __init__(self, bibentry):
-
-        # initialize
         self.type = ''
         self.author = ''
         self.journal = ''
@@ -109,7 +122,7 @@ class BibEntry:
 
         entry_lines = bibentry.splitlines()
 
-        # find bib entry type
+        # Find bib entry type
         match = re.findall(r'\b\w+\b', entry_lines[0])
         self.type = match[0]
 
