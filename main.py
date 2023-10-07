@@ -1,11 +1,12 @@
 """
 GUI program: 
 -Select: two .bib files to merge and clean.
--Merge: the new merged.bib file saved to working directory.
+-Merge: the new merged.bib file is saved to the same directory as the main .bib file.
 """
 
-from tkinter import Tk, Frame, Button, Entry, filedialog, StringVar
+from tkinter import Tk, Frame, Button, Entry, filedialog, StringVar, Label
 import re
+import os
 
 # Font and color theme definition
 theme = lambda: None
@@ -26,19 +27,24 @@ class App:
 
         self.mainbib_txt = StringVar()
         self.mergebib_txt = StringVar()
+        self.status_txt = StringVar()
+        self.status_txt.set('Select a main .bib file and a second .bib file to merge with it.')
 
-        mainbibBtn = cButton(root, "    Select Main bib    ", lambda: self.import_files(self.mainbib_txt), theme)
+        mainbibBtn = cButton(root, "   Main .bib path   ", lambda: self.import_files(self.mainbib_txt), theme)
         mainbibBtn.grid(row=0, column=0, sticky='NW', padx=3, pady=5)
         self.mainbibEntry = Entry(root, width=50, textvariable=self.mainbib_txt, bd=0, bg=theme.bgcolor2, highlightbackground=theme.fcolor, highlightthickness=1, fg=theme.fcolor)
         self.mainbibEntry.grid(row=0, column=1, sticky='NE', padx=5, pady=5)
 
-        mergebibBtn = cButton(root, " Select bib to Merge ", lambda: self.import_files(self.mergebib_txt), theme)
+        mergebibBtn = cButton(root, " Merge .bib path ", lambda: self.import_files(self.mergebib_txt), theme)
         mergebibBtn.grid(row=1, column=0, sticky='NW', padx=3, pady=5)
         self.mergebibEntry = Entry(root, width=50, textvariable=self.mergebib_txt, bd=0, bg=theme.bgcolor2, highlightbackground=theme.fcolor, highlightthickness=1, fg=theme.fcolor)
         self.mergebibEntry.grid(row=1, column=1, sticky='NE', padx=5, pady=5)
 
-        mergeBtn = cButton(root, "    Merge bibs    ", lambda: self.merge_files(self.mainbib_txt, self.mergebib_txt), theme)
-        mergeBtn.grid(row=2, column=1, sticky='SE', padx=3, pady=5)
+        statusLbl = Label(root, textvariable=self.status_txt, font=theme.dirfont, bg=theme.bgcolor3, fg=theme.fcolor)
+        statusLbl.grid(row=2, column=0, columnspan = 2, sticky='SW', padx=5, pady=5)
+
+        mergeBtn = cButton(root, "    Merge .bibs    ", lambda: self.merge_files(self.mainbib_txt, self.mergebib_txt, self.status_txt), theme)
+        mergeBtn.grid(row=2, column=1, sticky='SE', padx=5, pady=5)
 
         root.grid_columnconfigure(0,weight=1)
         root.grid_columnconfigure(1,weight=10)
@@ -52,30 +58,38 @@ class App:
         self.filename = filedialog.askopenfilename(title = "Select .bib file.")
         entry_txt.set(self.filename)
 
-    def merge_files(self, main_txt, merge_txt):
+    def merge_files(self, main_txt, merge_txt, status_txt):
         # Clean files
         self.filenames = [main_txt.get(), merge_txt.get()]
-        print(self.filenames)
-        contents = [None] * len(self.filenames)
-        for idx, bibname in enumerate(self.filenames):
-            with open(f'{bibname}', encoding='utf8') as f:
-                contents[idx] = f.read()
+        dir_path = os.path.dirname(main_txt.get())
 
-        for bib_idx, content in enumerate(contents):
-            entries = content.split('@')
-            for idx, entry in enumerate(entries):
+        for bib_name in self.filenames:
+            with open(f'{bib_name}', encoding='utf8') as f:
+                entries = f.read().split('@')
+
+            for entry_idx, entry in enumerate(entries):
                 entry_lines = entry.splitlines()
-                subidx_todelete = []
-                for subidx, text in enumerate(entry_lines):
-                    if subidx == 0:
-                        continue
-                    if any(x in text for x in ['urldate =', 'abstract =', 'file =', 'language =', 'note =', 'keywords =']):
-                        subidx_todelete.append(subidx)
-                for index in reversed(subidx_todelete):
-                    del entry_lines[index]
-                entries[idx] = '\n'.join(entry_lines)
 
-            with open(self.filenames[bib_idx].strip('.bib') + '_clean.bib', 'w', encoding='utf8') as f:
+                # Deletes irrelevant lines in bib entry
+                line_idx_todelete = []
+                delete_switch = False
+                for line_idx, line in enumerate(entry_lines):
+                    if line_idx == 0:
+                        continue
+                    if any(x in line for x in ['urldate =', 'abstract =', 'file =', 'language =', 'note =', 'keywords =', 'shorttitle =']):
+                        line_idx_todelete.append(line_idx)
+                        delete_switch = True
+                        continue
+                    if delete_switch:
+                        if any(x in line for x in ['title =', 'volume =', 'issn =', 'url =', 'doi =', 'journal =', 'author =', 'month =', 'year =', 'pages =', 'number =', 'address =', 'booktitle = ', 'publisher =', 'isbn =', 'type =', 'school =', 'institution =', 'edition =', 'series =', 'editor =']) or line == '}':
+                            delete_switch = False
+                            continue
+                        line_idx_todelete.append(line_idx)
+ 
+                for line_idx in reversed(line_idx_todelete):
+                    del entry_lines[line_idx]
+                entries[entry_idx] = '\n'.join(entry_lines)
+            with open(bib_name.strip('.bib') + '_clean.bib', 'w', encoding='utf8') as f:
                 f.write('@' + '\n@'.join(sorted(entries[1:])))
 
         # Merge files
@@ -88,6 +102,7 @@ class App:
         bibentries = [BibEntry(entry) for entry in entries1[1:]]
 
         # Loop through the second bibliography and ignore duplicates, then merge
+        duplicate_count = 0
         for entry in entries2[1:]:
             bibcheck = BibEntry(entry)
             match = False
@@ -100,11 +115,15 @@ class App:
                         match = True
                         print(bibtitle)
                         print(checktitle)
+                        duplicate_count += 1
             if not match:
                 entries1.append(entry)
 
-        with open(f'merged.bib', 'w', encoding='utf8') as f:
+        with open(f'{dir_path}\merged.bib', 'w', encoding='utf8') as f:
             f.write('@' + '\n@'.join(sorted(entries1[1:])))
+        
+        status_txt.set(f'Bib merge completed. {duplicate_count} duplicate(s) were detected.')
+        print(f'Bib merge completed. {duplicate_count} duplicate(s) were detected.')
 
 
 class BibEntry:
