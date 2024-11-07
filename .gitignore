@@ -2,6 +2,8 @@
 testbib1_clean.bib
 testbib2_clean.bib
 merged.bib
+testbib1.bib
+testbib2.bib
 
 # VSCode
 .vscode/
